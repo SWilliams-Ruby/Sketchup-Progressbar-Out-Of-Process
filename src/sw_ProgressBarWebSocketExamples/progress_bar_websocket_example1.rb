@@ -8,11 +8,11 @@ module SW
         # Specify the progress bar web page
         dialog_path = File.join(SW::ProgressBarWebSocketExamples::PLUGIN_DIR, 'html/example1_dialog.html')
         
-        # Specify a hash of elements that ae passed tot he dialog script
+        # Specify a hash of elements that will be passed to the dialog script
         pbar_status = {:operation => "Adding Cubes", :value => 0.0, :label => "Remaining:"}
         
-        # initialize the progress bar
         SW::ProgressBarWebSocket::ProgressBar.new(dialog_path) { |pbar|
+        
           # update the progressbar with initial values
           pbar.refresh(pbar_status)
           
@@ -28,6 +28,7 @@ module SW
               pbar_status[:label] = "Remaining: #{points.size - index}"
               pbar_status[:value] = 100 * index / points.size
               result = pbar.refresh(pbar_status)
+              # check for commands returned by the dialog
               if result == 'UserStopClicked' 
                 @userstop = true
                 break
