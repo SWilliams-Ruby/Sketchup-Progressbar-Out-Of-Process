@@ -90,11 +90,6 @@ module SW
         end
       end
 
-
-      # TODO: it is possible for the browser to attach after the operation is completed
-      # in which case we should send back the suchat_close message. Perhaps
-      # better done after we make a ws_connection class (a state machine)
-
       # Inbound transfer
       def self.inbound_transfer(tcpsocket)
         inbound_message = read_frame(tcpsocket)
@@ -108,11 +103,10 @@ module SW
       def self.accept_connection(tcpsocket, inbound_message)
         if /SUCHAT_Connect/ =~ inbound_message
           uniqueID = inbound_message.split(":")[1].split(" ")[1]
-          server_log(uniqueID)
           if (uniqueID.to_i == @suchat_uniqueID) and  (@suchat_status == :waiting)
             @suchat_status = :connected
           else
-            # this will close the WS tcpsocket and the browser
+            # setting run to false will close the tcpsocket and the browser
             @running = false
           end
         end
@@ -124,14 +118,6 @@ module SW
           first_byte = tcpsocket.getbyte
           fin = first_byte & 0b10000000
           opcode = first_byte & 0b00001111
-          
-          # # catch a rare problem
-          # unless first_byte
-            # @running = false
-            # server_log('SUCHAT_Close:Client Disconnected, nil error')
-            # return 'Client Disconnected, nil error' 
-          # end
-          
           second_byte = tcpsocket.getbyte
           is_masked = second_byte & 0b10000000
           payload_size = second_byte & 0b01111111
@@ -141,11 +127,6 @@ module SW
           elsif payload_size == 127 
             payload_size = tcpsocket.read(8).unpack('Q>')[0] 
           end
-   
-          # server_log(first_byte.class)
-          # server_log(first_byte.to_s(2))
-          # server_log(second_byte.to_s(2))
-          # server_log(payload_size)
 
           raise "We don't support continuations" unless fin
           raise "We only support opcode 1 & 8" unless (opcode == 1 or opcode == 8)
@@ -223,7 +204,7 @@ module SW
            @suchat_status 
       end
 
-      # read 
+      # Read  inbound stream
       # return String or nil
       def self.web_socket_read()      
         inbound_message = @inbound_queue.pop(true) rescue inbound_message = nil

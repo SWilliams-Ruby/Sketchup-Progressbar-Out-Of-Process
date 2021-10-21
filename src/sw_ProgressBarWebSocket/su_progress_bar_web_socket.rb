@@ -1,13 +1,10 @@
 require 'json'
 
-#Warning!!!
-# these examples are way out of date
-
 #############################################
 #
 # Initializer:
-#   new() -> progressbar
-#   new() { |progressbar| block } -> result of block
+#   new(dialog_path) -> progressbar
+#   new(dialog_path) { |progressbar| block } -> result of block
 #
 # If a code block is given the progressbar will be shown, the code block will be
 # executed, and the progressbar will then be hidden. The progressbar instance
@@ -17,18 +14,22 @@ require 'json'
 #
 # block example:
 # module SW::ProgressBarWebSocketExample
-#   def self.run_demo1()
+# def self.run_demo1()
 #     begin
 #       model = Sketchup.active_model.start_operation('Progress Bar Example', true)
-#       SW::ProgressBarWebSocket::ProgressBar.new {|pbar|
+# 
+#       dialog_path = File.join(SW::ProgressBarWebSocketExamples::PLUGIN_DIR, 'html/example1_dialog.html')
+#       pbar_status = {:operation => "Progress Bar Example", :value => 0.0, :label => "Remaining:100"}
+# 
+#       SW::ProgressBarWebSocket::ProgressBar.new(dialog_path) {|pbar|
 #         100.times {|i|
 #           # modify the sketchup model here
-#           sleep(0.01)
+#           sleep(0.02)
 #           # update the progressbar
-#           if pbar.update?
-#             pbar.label= "Remaining: #{100 - i}"
-#             pbar.set_value(i)
-#             pbar.refresh
+#            if pbar.update?
+#             pbar_status[:label] = "Remaining: #{100 - i}"
+#             pbar_status[:value] = i / 100
+#             result = pbar.refresh(pbar_status)
 #           end
 #         }
 #       }
@@ -46,40 +47,41 @@ require 'json'
 #   def self.run_demo2()
 #     begin
 #       model = Sketchup.active_model.start_operation('Progress Bar Example', true)
-#       pbar = SW::ProgressBarWebSocket::ProgressBar.new
+# 
+#       dialog_path = File.join(SW::ProgressBarWebSocketExamples::PLUGIN_DIR, 'html/example1_dialog.html')
+#       pbar_status = {:operation => "Progress Bar Example", :value => 0.0, :label => "Remaining:100"}
+# 
+#       pbar = SW::ProgressBarWebSocket::ProgressBar.new(dialog_path)
 #       pbar.show
+#       
 #       100.times {|i|
-#         # modify the sketchup model
-#         sleep(0.01)
+#         # modify the sketchup model here
+#         sleep(0.02)
 #         # update the progressbar
-#         if pbar.update?
-#           pbar.label= "Remaining: #{100 - i}"
-#           pbar.set_value(i)
-#           pbar.refresh
+#          if pbar.update?
+#           pbar_status[:label] = "Remaining: #{100 - i}"
+#           pbar_status[:value] = i / 100
+#           result = pbar.refresh(pbar_status)
 #         end
 #       }
 #       Sketchup.active_model.commit_operation
 #     rescue => exception
 #       Sketchup.active_model.abort_operation
 #       raise exception
-#     ensure pbar.hide
+#     ensure
+#       pbar.hide
 #     end
 #   end
 #   run_demo2()
 # end
-# 
+#
 
 module SW
   module ProgressBarWebSocket
-    # Exception class for Progress bar user code errors
-    class ProgressBarError < RuntimeError; end
-
-    # Exception class for Progress bar user code errors
+    # Exception class for Progress bar control messages
     class ProgressBarAbort < RuntimeError; end
 
     class ProgressBar
-      @@html_good = "HTTP/1.1 200\r\nContent-Type: text/html\r\n\r\n".freeze
-
       def initialize(dialog_path, &block)
         @dialog_path = dialog_path
         if block
@@ -93,54 +95,36 @@ module SW
       end # initialize
    
       # Show the progress bar
+      # 
       def show()
-        activate()
-      end
-
-      def hide()
-        deactivate()
-      end
-         
-      def activate
         @activated = true
         @update_interval = 0.1
         register_with_server_and_show()
         start_update_thread()
       end
 
-      # Stop the updater thread
-      # Signal the dialog to close
-      # End the tcpsocket connection
-      def deactivate()
+      # Stop the update? thread
+      # Close the dialog
+      #
+      def hide()
         @activated = false
         stop_update_thread()
         @server.web_socket_close()
       end
-      
-      # Send status to the progressbar
-      # @param status [Hash]
-      def refresh(status)
-        params = status.to_json
-        @server.web_socket_write(params)
-        response = @server.web_socket_read()
-        raise ProgressBarAbort, "User Cancel Clicked" if response == "UserCancelClicked"
-        raise ProgressBarAbort, "User Close Dialog" if response && response.match('^SUCHAT_Close')
-        response  
-      end
-        
-      # The update? method returns true approximately every @update_interval.
-      # To regulate the frequency of refreshes the user code should query
-      # the update? flag and refresh when the returned value is true.
-      def update?
-        temp = @update_flag
-        @update_flag = false
-        temp
-      end
      
+      # Instruct the dialog to open: 
+      # http://localhost:48484/SUPBWS/progressbar.htm
+      # The actual page displayed will be produced by
+      # the progressbar_handler method
+      #
       def register_with_server_and_show()
         @server = Simple_server.get_server()
-        @server.web_socket_new()
+        @server.web_socket_new() #reset websocket
         @server.register_handler('/SUPBWS/progressbar.htm', method(:progressbar_handler))
+        open_dialog()
+      end
+      
+      def open_dialog()
         link = "http://localhost:48484/SUPBWS/progressbar.htm"
         system_call("chrome --app=#{link}") if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
         #system "start chrome --app=#{link}" if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
@@ -149,8 +133,6 @@ module SW
       
       # Eneroth's system_call()
       # Run system call without flashing command line window on Windows.
-      # Runs asynchronously.
-      # Windows only hack.
       #
       # @param cmd String.
       #
@@ -170,6 +152,8 @@ module SW
       # Insert a unique instance identifier into the javascript
       # before sending the page to the browser.
       #
+      @@html_good = "HTTP/1.1 200\r\nContent-Type: text/html\r\n\r\n".freeze
+      
       def progressbar_handler(tcpsocket, params_hash)
         uniqueID = @server.web_socket_get_uniqueID()      
         dialog_path = @dialog_path.force_encoding("UTF-8") if @dialog_path.respond_to?(:force_encoding)
@@ -185,8 +169,30 @@ module SW
            
  
       ###################################
-      # Timed update? routines 
+      # Update routines 
       ###################################
+      
+      # Send status to the progressbar
+      # @param status [Hash]
+      #
+      def refresh(status)
+        params = status.to_json
+        @server.web_socket_write(params)
+        response = @server.web_socket_read()
+        raise ProgressBarAbort, "User Cancel Clicked" if response == "UserCancelClicked"
+        raise ProgressBarAbort, "User Close Dialog" if response && response.match('^SUCHAT_Close')
+        response  
+      end
+        
+      # The update? method returns true approximately every @update_interval.
+      # To regulate the frequency of refreshes the user code should query
+      # the update? flag and refresh when the returned value is true.
+      def update?
+        temp = @update_flag
+        @update_flag = false
+        temp
+      end
+      
       
       def start_update_thread()
         @update_thread = Thread.new() {update_loop()}

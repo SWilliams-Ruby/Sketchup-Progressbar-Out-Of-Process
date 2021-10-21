@@ -37,7 +37,7 @@ module SW
 
         # server_log("SW Simple Server: Request: #{request}")
         server_log("SW Simple Server: URI: #{request_uri}")
-        server_log("SW Simple Server: Params Hash: #{params_hash}")
+        # server_log("SW Simple Server: Params Hash: #{params_hash}")
 
         handler = @request_handlers[request_uri]
         if handler
@@ -106,17 +106,21 @@ module SW
  
     Simple_server.server_start()
    
-    # UI.start_timer(2.0, false) {
-      # #open a web app window
-      # link = "http://localhost:48484/controlpanel"
-      # system "start chrome --app=#{link}" if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
-    # }
-    
+    def self.start_controlpanel()
+      UI.start_timer(0.1, false) {
+        link = "http://localhost:48484/controlpanel"
+        system "start chrome --app=#{link}" if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        # system "open #{link}" if RbConfig::CONFIG['host_os'] =~ /darwin/
+      }
+    end
+      
     def self.start_console()
       link = "http://localhost:48484/console.htm"
       system "start chrome --app=#{link}" if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
-      #system "open #{link}" if RbConfig::CONFIG['host_os'] =~ /darwin/
+      # system "open #{link}" if RbConfig::CONFIG['host_os'] =~ /darwin/
     end
+    
+    # start_console()
     
   end
 end
