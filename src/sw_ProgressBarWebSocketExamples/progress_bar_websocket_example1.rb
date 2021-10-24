@@ -3,6 +3,8 @@ module SW
   module ProgressBarWebSocketExamples
     def self.demo1()
       begin
+      #p 'start'
+
         model = Sketchup.active_model.start_operation('Progress Bar Example', true)
 
         # Specify the progress bar web page
@@ -12,7 +14,11 @@ module SW
         pbar_status = {:operation => "Adding Cubes", :value => 0.0, :label => "Remaining:"}
         
         SW::ProgressBarWebSocket::ProgressBar.new(dialog_path) { |pbar|
-        
+          # 10.times { sleep(0.2) }
+          # p 'end'
+          # return      
+
+
           # update the progressbar with initial values
           pbar.refresh(pbar_status)
           

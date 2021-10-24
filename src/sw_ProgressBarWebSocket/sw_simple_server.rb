@@ -1,4 +1,4 @@
-# SW::ProgressBarWebSocket::Simple_server.server_stop
+# SW::ProgressBarWebSocket::Simple_server.start_server
 require 'cgi'
 require 'socket'
   
@@ -10,6 +10,7 @@ module SW
     # This will obviously fail because of conflicting port numbers if run in two instances of sketchup
     #
     module Simple_server
+    
       def self.server_loop()
         loop do
           @server_threads << Thread.start(@server.accept) do |tcpsocket|
@@ -43,13 +44,13 @@ module SW
         if handler
           handler.call(tcpsocket, request)
         else
-          response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length:0\r\nConnection: close\r\n"
+          response = "HTTP/1.1 404 Not Found\r\n\r\n"
           tcpsocket.print response
           tcpsocket.close
         end
       end #server_loop
           
-      ###############################33
+      ###############################
       # Public Methods
       #
       def self.get_server
@@ -64,7 +65,7 @@ module SW
         @request_handlers[key] = meth
       end
   
-      ###############################33
+      ###############################
       # Utility functions
       #
       def self.server_start()
@@ -74,12 +75,15 @@ module SW
         @console_connected = false
         @console_rd_pipe, @console_wr_pipe = IO.pipe
         @request_handlers = {}
+        
+        # load default request handlers
         add_default_request_handlers()
 
-        @server = TCPServer.new('localhost', 48484)
-        @server_thread = Thread.new {server_loop()}
-        @server_thread.priority = 1
+        # Start the server thread
         @server_threads = []
+        @server = TCPServer.new('localhost', 48484)
+        @server_thread = Thread.new { server_loop() }
+        @server_thread.priority = 1
       end
       
       def self.server_stop()
@@ -107,7 +111,8 @@ module SW
     Simple_server.server_start()
    
     def self.start_controlpanel()
-      UI.start_timer(0.1, false) {
+      # why not wait
+      UI.start_timer(1.0, false) {
         link = "http://localhost:48484/controlpanel"
         system "start chrome --app=#{link}" if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
         # system "open #{link}" if RbConfig::CONFIG['host_os'] =~ /darwin/
@@ -124,5 +129,6 @@ module SW
     
   end
 end
+puts "SW::ProgressBarWebSocket::Simple_server.server_start"
 nil
 

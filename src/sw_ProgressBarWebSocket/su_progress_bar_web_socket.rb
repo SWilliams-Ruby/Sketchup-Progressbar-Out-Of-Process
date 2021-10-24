@@ -82,6 +82,7 @@ module SW
     class ProgressBarAbort < RuntimeError; end
 
     class ProgressBar
+	  @@inuse = false
       def initialize(dialog_path, &block)
         @dialog_path = dialog_path
         if block
@@ -97,6 +98,8 @@ module SW
       # Show the progress bar
       # 
       def show()
+	    return if @@inuse # one at a time please
+        @@inuse = true
         @activated = true
         @update_interval = 0.1
         register_with_server_and_show()
@@ -107,6 +110,7 @@ module SW
       # Close the dialog
       #
       def hide()
+	    @@inuse = false
         @activated = false
         stop_update_thread()
         @server.web_socket_close()

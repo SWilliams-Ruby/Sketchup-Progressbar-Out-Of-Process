@@ -1,9 +1,9 @@
 module SW
   module ProgressBarWebSocket
     module Simple_server
-      @html_good = "HTTP/1.1 200\r\nContent-Type: text/html\r\n\r\n".freeze
+      @html_good = "HTTP/1.1 200\r\nContent-Type: text/html\r\n\r\n"
       
-      @html_not_found = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length:0\r\nConnection: close\r\n"
+      @html_not_found = "HTTP/1.1 404 Not Found\r\n\r\n"
       
       @html_stopped = "HTTP/1.1 200\r\nContent-Type: text/html\r\n\r\nServer Shutting Down"
       
@@ -27,11 +27,13 @@ module SW
 
       def self.add_default_request_handlers()
         register_handler('/index.htm', method(:index_handler))
-        register_handler('/favicon.ico', method(:favicon_handler))
         register_handler('/controlpanel.htm', method(:controlpanel_handler))
         register_handler('/controlpanel_command.htm', method(:controlpanel_command_handler))
         register_handler('/console.htm', method(:console_handler))
         register_handler('/SUCHAT/WSopen', method(:suchat_handler))
+        register_handler('/favicon.ico', method(:favicon_handler))
+        register_handler('/pbar.png', method(:png_handler))
+        register_handler('/pbar.jpg', method(:jpg_handler))
       end
       
       def self.index_handler(tcpsocket, request)
@@ -43,9 +45,41 @@ module SW
       end
       
       def self.favicon_handler(tcpsocket, request)
-        response = ''
-        response << @html_not_found
-        tcpsocket.print response
+        path = File.join(SW::ProgressBarWebSocket::PLUGIN_DIR, 'icons', 'pbar.ico')
+        File.open(path, 'rb') { |f|
+          data = f.read
+          response = ''
+          response <<  "HTTP/1.1 200\r\nContent-Type: image/x-icon\r\n"
+          response << "Content-Lenth:#{data.size}\r\n\r\n"
+          response << data
+          tcpsocket.print response
+        }
+        tcpsocket.close
+      end
+      
+      def self.png_handler(tcpsocket, request)
+        path = File.join(SW::ProgressBarWebSocket::PLUGIN_DIR, 'icons', 'pbar.png')
+        File.open(path, 'rb') { |f|
+          data = f.read
+          response = ''
+          response <<  "HTTP/1.1 200\r\nContent-Type:image/png\r\n"
+          response << "Content-Lenth:#{data.size}\r\n\r\n"
+          response << data
+          tcpsocket.print response
+        }
+        tcpsocket.close
+      end
+      
+      def self.jpg_handler(tcpsocket, request)
+        path = File.join(SW::ProgressBarWebSocket::PLUGIN_DIR, 'icons', 'pbar.jpg')
+        File.open(path, 'rb') { |f|
+          data = f.read
+          server_log("start")
+          response = "HTTP/1.1 200\r\nContent-Type: iamge/jpeg\r\n"
+          response << "Content-Lenth: #{data.size}\r\n\r\n"
+          response << data
+          tcpsocket.print response
+        }
         tcpsocket.close
       end
       
