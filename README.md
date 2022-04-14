@@ -4,7 +4,7 @@ In which we explore the possibility of implementing a 'Cancel' button to interru
 
 Implemented via:
 - A multi-threaded Ruby TCPServer running in the Sketchup process
-- a Custom WebSocket implementataion
+- a Custom WebSocket implementation
 - the Chrome Browser running in Application mode
 - and utility Javascript functions
 
